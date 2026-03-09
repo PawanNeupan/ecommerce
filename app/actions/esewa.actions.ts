@@ -2,6 +2,7 @@
 
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
+import { OrderStatus, PaymentStatus, PaymentProvider } from "@prisma/client";
 import type { CartItem } from "@/lib/cart-store";
 
 function toBase64HmacSha256(secret: string, message: string) {
@@ -18,21 +19,16 @@ export async function createEsewaPayloadAction(items: CartItem[]) {
   const secret = process.env.ESEWA_SECRET_KEY!;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
-  // ✅ IMPORTANT: signed fields required by eSewa v2
   const signed_field_names = "total_amount,transaction_uuid,product_code";
-
-  // ✅ Common v2 signing format:
-  // total_amount=xx.xx,transaction_uuid=uuid,product_code=EPAYTEST
   const signString = `total_amount=${total},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
   const signature = toBase64HmacSha256(secret, signString);
 
-  // Create DB order as pending
   await prisma.order.create({
     data: {
       total,
-      status: "PENDING",
-      paymentProvider: "ESEWA",
-      paymentStatus: "UNPAID",
+      status: OrderStatus.PENDING,           // ✅ enum
+      paymentProvider: PaymentProvider.ESEWA, // ✅ enum
+      paymentStatus: PaymentStatus.UNPAID,   // ✅ enum
       paymentRef: transaction_uuid,
       items: {
         create: items.map((i) => ({
@@ -63,7 +59,10 @@ export async function createEsewaPayloadAction(items: CartItem[]) {
 
 export async function markEsewaPaidAction(uuid: string) {
   await prisma.order.updateMany({
-    where: { paymentProvider: "ESEWA", paymentRef: uuid },
-    data: { status: "PAID", paymentStatus: "PAID" },
+    where: { paymentProvider: PaymentProvider.ESEWA, paymentRef: uuid },
+    data: {
+      status: OrderStatus.PAID,           // ✅ enum
+      paymentStatus: PaymentStatus.PAID,  // ✅ enum
+    },
   });
 }

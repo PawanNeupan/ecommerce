@@ -5,13 +5,11 @@ import { useCart } from "@/lib/cart-store";
 import { useMounted } from "@/app/components/useMounted";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createStripeCheckoutSessionAction } from "@/app/actions/stripe.actions";
-import { useRouter } from "next/navigation";
+import { createKhaltiPaymentAction } from "@/app/actions/khalti";
 import Image from "next/image";
 
-export default function StripeCheckoutPage() {
+export default function KhaltiCheckoutPage() {
   const mounted = useMounted();
-  const router = useRouter();
   const { items } = useCart();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,28 +24,23 @@ export default function StripeCheckoutPage() {
     setLoading(true);
     setError(null);
     try {
-      const url = await createStripeCheckoutSessionAction(items);
-      if (!url) throw new Error("No Stripe URL returned");
-      window.location.href = url;
+      const paymentUrl = await createKhaltiPaymentAction(items);
+      window.location.href = paymentUrl;
     } catch (err: any) {
-      setError(err.message ?? "Stripe checkout failed. Please try again.");
+      setError(err.message ?? "Something went wrong. Please try again.");
       setLoading(false);
     }
   }
 
   return (
     <main className="mx-auto max-w-xl p-6 space-y-6">
-      {/* Order Summary */}
       <Card>
         <CardHeader>
           <CardTitle>Order Summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {items.map((i) => (
-            <div
-              key={i.productId}
-              className="flex items-center justify-between gap-4"
-            >
+            <div key={i.productId} className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 {i.imageUrl && (
                   <Image
@@ -64,31 +57,30 @@ export default function StripeCheckoutPage() {
                 </span>
               </div>
               <span className="font-medium text-sm">
-                ${(i.price * i.qty).toFixed(2)}
+                Rs. {(i.price * i.qty).toFixed(2)}
               </span>
             </div>
           ))}
 
           <div className="border-t pt-4 flex justify-between font-bold text-lg">
             <span>Total</span>
-            <span>${total.toFixed(2)}</span>
+            <span>Rs. {total.toFixed(2)}</span>
           </div>
         </CardContent>
       </Card>
 
-      {/* Pay Button */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#635BFF] flex items-center justify-center text-white font-bold text-sm">
-              S
+            <div className="w-10 h-10 rounded-full bg-[#5C2D91] flex items-center justify-center text-white font-bold text-sm">
+              K
             </div>
-            <CardTitle>Pay with Stripe</CardTitle>
+            <CardTitle>Pay with Khalti</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            You will be redirected to Stripe&apos;s secure payment page to
+            You will be redirected to Khalti&apos;s secure payment page to
             complete your purchase.
           </p>
 
@@ -99,24 +91,15 @@ export default function StripeCheckoutPage() {
           )}
 
           <Button
-            className="w-full bg-[#635BFF] hover:bg-[#4f46e5] text-white"
+            className="w-full bg-[#5C2D91] hover:bg-[#4a2275] text-white"
             onClick={handlePay}
             disabled={loading}
           >
-            {loading ? "Redirecting to Stripe…" : `Pay $${total.toFixed(2)}`}
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => router.push("/checkout")}
-            disabled={loading}
-          >
-            Back
+            {loading ? "Redirecting to Khalti…" : `Pay Rs. ${total.toFixed(2)}`}
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            🔒 Secured by Stripe · Test mode active
+            🔒 Secured by Khalti · Test mode active
           </p>
         </CardContent>
       </Card>

@@ -2,8 +2,9 @@
 
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
+import { OrderStatus, PaymentStatus, PaymentProvider } from "@prisma/client";
 import type { CartItem } from "@/lib/cart-store";
-import { getSession } from "@/lib/auth"; // if you have it; otherwise remove
+import { getSession } from "@/lib/auth";
 
 function absImageUrl(imageUrl: string) {
   const base = process.env.NEXT_PUBLIC_APP_URL!;
@@ -17,7 +18,6 @@ export async function createStripeCheckoutSessionAction(items: CartItem[]) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL!;
   if (!baseUrl) throw new Error("NEXT_PUBLIC_APP_URL missing");
 
-  // Optional: attach userId if logged in
   let userId: string | null = null;
   try {
     const s = await getSession();
@@ -28,7 +28,6 @@ export async function createStripeCheckoutSessionAction(items: CartItem[]) {
 
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
 
-  // 1) Create Stripe session first
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -45,21 +44,17 @@ export async function createStripeCheckoutSessionAction(items: CartItem[]) {
         },
       },
     })),
-    metadata: {
-      // helpful in webhook
-      userId: userId ?? "",
-    },
+    metadata: { userId: userId ?? "" },
   });
 
-  // 2) Create DB order as PENDING and store Stripe session id in paymentRef
   await prisma.order.create({
     data: {
       userId: userId ?? undefined,
-      status: "PENDING",
+      status: OrderStatus.PENDING,           // ✅ enum
       total,
-      paymentProvider: "STRIPE",
-      paymentStatus: "UNPAID",
-      paymentRef: session.id, // ✅ link order to Stripe session
+      paymentProvider: PaymentProvider.STRIPE, // ✅ enum
+      paymentStatus: PaymentStatus.UNPAID,   // ✅ enum
+      paymentRef: session.id,
       items: {
         create: items.map((i) => ({
           productId: i.productId,

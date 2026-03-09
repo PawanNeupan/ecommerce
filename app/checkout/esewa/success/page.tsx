@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-store";
 import { Button } from "@/components/ui/button";
 import { markEsewaPaidAction } from "@/app/actions/esewa.actions";
+import { CheckCircle } from "lucide-react";
 
 export default function EsewaSuccess() {
   const sp = useSearchParams();
@@ -19,11 +20,22 @@ export default function EsewaSuccess() {
   }, [uuid, clear]);
 
   return (
-    <main className="mx-auto max-w-xl p-6 text-center space-y-4">
-      <h1 className="text-2xl font-semibold text-green-600">
-        eSewa Payment Success ✅
-      </h1>
-      <Button onClick={() => router.push("/products")}>Continue shopping</Button>
+    <main className="flex min-h-[60vh] items-center justify-center p-6">
+      <div className="max-w-md w-full text-center space-y-6">
+        <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+        <h1 className="text-2xl font-bold text-green-700">
+          Payment Successful!
+        </h1>
+        <p className="text-muted-foreground">
+          Your eSewa payment was confirmed and your order is being processed.
+        </p>
+        <div className="flex gap-3 justify-center">
+          <Button onClick={() => router.push("/orders")}>View Orders</Button>
+          <Button variant="outline" onClick={() => router.push("/products")}>
+            Continue Shopping
+          </Button>
+        </div>
+      </div>
     </main>
   );
 }
