@@ -5,6 +5,7 @@ export const revalidate = 0;
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import AdminProductForm from "../components/AdminProductForm";
 import {
@@ -13,8 +14,6 @@ import {
 } from "../actions/product.actions";
 
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -33,6 +32,7 @@ import {
   LayoutGrid,
   TrendingUp,
   Archive,
+  ShoppingBag,
 } from "lucide-react";
 
 function normalizeImageUrl(url?: string | null) {
@@ -46,18 +46,19 @@ export default async function AdminPage() {
   if (!s) redirect("/login");
   if (s.role !== "ADMIN") redirect("/");
 
-  const products = await prisma.product.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [products, ordersCount] = await Promise.all([
+    prisma.product.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.order.count(),
+  ]);
 
-  const activeCount  = products.filter((p) => p.isActive).length;
-  const hiddenCount  = products.filter((p) => !p.isActive).length;
-  const totalValue   = products.reduce((sum, p) => sum + p.price * p.stock, 0);
+  const activeCount = products.filter((p) => p.isActive).length;
+  const hiddenCount = products.filter((p) => !p.isActive).length;
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10 space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+
+      {/* ── Header ───────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
@@ -69,13 +70,24 @@ export default async function AdminPage() {
             Dashboard
           </h1>
         </div>
-        <span className="text-sm text-muted-foreground">
-          Welcome back, {s.email ?? "Admin"}
-        </span>
+
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground hidden sm:block">
+            Welcome back, {s.email ?? "Admin"}
+          </span>
+          <Link
+            href="/admin/orders"
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            View All Orders
+          </Link>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* ── Stats ────────────────────────────────────────── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total Products */}
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center gap-4">
           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
             <LayoutGrid className="h-5 w-5 text-primary" />
@@ -86,6 +98,7 @@ export default async function AdminPage() {
           </div>
         </div>
 
+        {/* Active */}
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center gap-4">
           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-green-500/10">
             <TrendingUp className="h-5 w-5 text-green-600" />
@@ -96,6 +109,7 @@ export default async function AdminPage() {
           </div>
         </div>
 
+        {/* Hidden */}
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center gap-4">
           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-muted">
             <Archive className="h-5 w-5 text-muted-foreground" />
@@ -105,9 +119,24 @@ export default async function AdminPage() {
             <p className="text-xs text-muted-foreground">Hidden Products</p>
           </div>
         </div>
+
+        {/* Orders — clickable */}
+        <Link href="/admin/orders" className="group">
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center gap-4 transition-all hover:border-primary/30 hover:shadow-md h-full">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+              <ShoppingBag className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors">
+                {ordersCount}
+              </p>
+              <p className="text-xs text-muted-foreground">Total Orders</p>
+            </div>
+          </div>
+        </Link>
       </div>
 
-      {/* Add Product */}
+      {/* ── Add Product ───────────────────────────────────── */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 border-b border-border px-6 py-4">
           <PlusCircle className="h-4 w-4 text-primary" />
@@ -118,7 +147,7 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* Products Table */}
+      {/* ── Products Table ───────────────────────────────── */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-2">
@@ -165,7 +194,7 @@ export default async function AdminPage() {
                     )}
                   </TableCell>
 
-                  {/* Title */}
+                  {/* Title + description */}
                   <TableCell>
                     <p className="font-medium text-foreground">{p.title}</p>
                     <p className="text-xs text-muted-foreground line-clamp-1 max-w-48">
@@ -202,10 +231,7 @@ export default async function AdminPage() {
                         Active
                       </Badge>
                     ) : (
-                      <Badge
-                        variant="secondary"
-                        className="text-muted-foreground"
-                      >
+                      <Badge variant="secondary" className="text-muted-foreground">
                         Hidden
                       </Badge>
                     )}
@@ -216,11 +242,7 @@ export default async function AdminPage() {
                     <div className="flex justify-end gap-2">
                       {/* Toggle */}
                       <form
-                        action={adminToggleProductAction.bind(
-                          null,
-                          p.id,
-                          !p.isActive
-                        )}
+                        action={adminToggleProductAction.bind(null, p.id, !p.isActive)}
                       >
                         <button
                           type="submit"
@@ -232,21 +254,15 @@ export default async function AdminPage() {
                             }`}
                         >
                           {p.isActive ? (
-                            <>
-                              <EyeOff className="h-3.5 w-3.5" /> Hide
-                            </>
+                            <><EyeOff className="h-3.5 w-3.5" /> Hide</>
                           ) : (
-                            <>
-                              <Eye className="h-3.5 w-3.5" /> Show
-                            </>
+                            <><Eye className="h-3.5 w-3.5" /> Show</>
                           )}
                         </button>
                       </form>
 
                       {/* Delete */}
-                      <form
-                        action={adminDeleteProductAction.bind(null, p.id)}
-                      >
+                      <form action={adminDeleteProductAction.bind(null, p.id)}>
                         <button
                           type="submit"
                           className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground"
